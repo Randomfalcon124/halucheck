@@ -301,9 +301,17 @@ class Sidecar:
 
     @torch.no_grad()
     def judge_route(self, question: str, response: str,
-                     override_strong_no: float = -1.0) -> dict:
+                     override_strong_no: float = -1.0,
+                     override_min_v1: float = 2.0) -> dict:
         """Combined v1+v2 judge with override rule. Mirror of the proxy's
-        /v1/judge_route endpoint."""
+        /v1/judge_route endpoint.
+
+        v1 → v2 override fires only when v1_margin >= override_min_v1 (default
+        2.0) AND v2_margin < override_strong_no (default -1.0). The
+        override_min_v1 floor prevents v2's confident-assertion tolerance
+        from suppressing subtle fabrications like 'Marie Curie discovered
+        penicillin in 1928' where v1 gives a mild HALL signal (~+1.75).
+        """
         v1 = self.judge(question, response)
         v1_pred = int(v1["margin"] > 0)
         v1_margin = v1["margin"]
@@ -311,7 +319,8 @@ class Sidecar:
             return {**v1, "v1_margin": v1_margin, "v2_margin": None,
                     "rule": "v1_only", "router_active": False}
         v2_pred, v2_margin = self.judge_v2(question, response)  # type: ignore[misc]
-        if v1_margin > 0 and v2_margin < override_strong_no:
+        if (v1_margin >= override_min_v1
+                and v2_margin < override_strong_no):
             return {
                 "hallucination": False,
                 "margin": round(v2_margin, 3),
@@ -321,12 +330,14 @@ class Sidecar:
                 "router_active": True,
                 "verdict": "likely accurate (router overrode v1)",
             }
+        rule_name = ("v1_default_mild_zone"
+                     if 0 < v1_margin < override_min_v1 else "v1_default")
         return {
             "hallucination": bool(v1_pred),
             "margin": round(v1_margin, 3),
             "v1_margin": round(v1_margin, 3),
             "v2_margin": round(v2_margin, 3),
-            "rule": "v1_default",
+            "rule": rule_name,
             "router_active": True,
             "verdict": "likely hallucination" if v1_pred else "likely accurate",
         }
@@ -426,7 +437,8 @@ def halucheck_judge_rag(question: str, response: str, context: str) -> dict:
 
 @mcp.tool()
 def halucheck_judge_route(question: str, response: str,
-                            override_strong_no: float = -1.0) -> dict:
+                            override_strong_no: float = -1.0,
+                            override_min_v1: float = 2.0) -> dict:
     """Routed hallucination judge — combines primary + L4-specialised LoRAs.
 
     Default is the primary judge. If HALUCHECK_JUDGE_LORA_V2 is configured,
@@ -446,7 +458,8 @@ def halucheck_judge_route(question: str, response: str,
        v2_margin: float | null, rule: str, router_active: bool, verdict: str}
     """
     return SIDECAR.judge_route(question, response,
-                                 override_strong_no=override_strong_no)
+                                 override_strong_no=override_strong_no,
+                                 override_min_v1=override_min_v1)
 
 
 @mcp.tool()

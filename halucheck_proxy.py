@@ -277,18 +277,23 @@ class Sidecar:
 
     @torch.no_grad()
     def judge_route(self, question: str, response: str,
-                     override_strong_no: float = -1.0) -> dict:
+                     override_strong_no: float = -1.0,
+                     override_min_v1: float = 2.0) -> dict:
         """Router: combine v1 and v2 judges to suppress L4-class FPs without
-        losing v1's AB recall.
+        losing v1's recall on subtle fabrications.
 
         Decision rule:
           - If v2 is not configured → behave identically to `judge()`.
           - Else run both. Use v1 by default.
-          - Override v1 → v2 iff v1 says HALL (margin > 0) AND
-            v2 strongly disagrees (margin < `override_strong_no`).
-            This catches Shakespeare-style FPs (v2 margin −5.75 vs v1 +3.38)
-            while leaving real AB hallucinations alone (where v2 either
-            also flags or sits near 0).
+          - Override v1 → v2 iff:
+              v1_margin >= override_min_v1 (strongly positive, default 2.0)
+              AND v2_margin < override_strong_no (default -1.0)
+          - The `override_min_v1` floor was added after the Curie / penicillin
+            FN: v1 +1.75 (mild HALL signal — likely real fabrication) was
+            wrongly suppressed by v2 -3.50 (high tolerance for confident
+            assertions). Real fabrications often sit in v1 ∈ (0, 2] while
+            v2's tolerance is too generous to be the deciding voice there.
+            Set `override_min_v1=0` to restore legacy behaviour.
 
         Returns a dict with both margins, the rule that fired, and the final
         verdict — so callers can see the routing decision.
@@ -304,7 +309,8 @@ class Sidecar:
                 "router_active": False,
             }
         v2_pred, v2_margin = self.judge_v2(question, response)  # type: ignore[misc]
-        if v1_margin > 0 and v2_margin < override_strong_no:
+        if (v1_margin >= override_min_v1
+                and v2_margin < override_strong_no):
             return {
                 "hallucination": False,
                 "margin": v2_margin,
@@ -313,12 +319,15 @@ class Sidecar:
                 "rule": "v2_override_likely_FP",
                 "router_active": True,
             }
+        # v1 wins if v1 is mildly positive (0, override_min_v1) — that's the
+        # subtle-fabrication zone the previous rule wrongly suppressed.
         return {
             "hallucination": bool(v1_pred),
             "margin": v1_margin,
             "v1_margin": v1_margin,
             "v2_margin": v2_margin,
-            "rule": "v1_default",
+            "rule": ("v1_default_mild_zone"
+                      if 0 < v1_margin < override_min_v1 else "v1_default"),
             "router_active": True,
         }
 
@@ -987,6 +996,8 @@ async def judge_route_endpoint(request: Request):
         raise HTTPException(400, "question and response required")
     override_thr = float(body.get("override_strong_no",
                                     os.getenv("HALUCHECK_ROUTE_OVERRIDE_STRONG_NO", "-1.0")))
+    override_min_v1 = float(body.get("override_min_v1",
+                                       os.getenv("HALUCHECK_ROUTE_OVERRIDE_MIN_V1", "2.0")))
     no_cache = bool(body.get("no_cache", False))
     # Cache by (q, a, override_thr) — override changes the verdict
     cache_q = q
@@ -995,7 +1006,8 @@ async def judge_route_endpoint(request: Request):
         cached = JUDGE_CACHE.observe(cache_q, cache_a)
         if cached is not None:
             return {**cached, "cache_hit": True}
-    result = SIDECAR.judge_route(q, a, override_strong_no=override_thr)
+    result = SIDECAR.judge_route(q, a, override_strong_no=override_thr,
+                                    override_min_v1=override_min_v1)
     # Round margins for response
     for k in ("margin", "v1_margin", "v2_margin"):
         if isinstance(result.get(k), float):
