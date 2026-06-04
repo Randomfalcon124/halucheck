@@ -1,0 +1,62 @@
+{
+  "name": "halucheck",
+  "version": "0.1.0",
+  "description": "Cheap (1.5B) hallucination sidecar for Claude Code / Cowork. Adds input-side abstention detection, prompt rephrasing, and output-side hallucination judging as MCP tools, hooks, and slash commands.",
+  "author": "HaluCheck",
+  "license": "MIT",
+  "homepage": "https://github.com/example/halucheck",
+  "keywords": ["hallucination", "abstention", "guardrails", "llm-judge", "sidecar"],
+  "mcpServers": {
+    "halucheck": {
+      "command": "python",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/mcp/server.py"],
+      "env": {
+        "HALUCHECK_BASE_MODEL": "Qwen/Qwen2.5-1.5B-Instruct",
+        "HALUCHECK_ABS_LORA": "${HALUCHECK_ABS_LORA:-ckpt_abs_check_sft}",
+        "HALUCHECK_JUDGE_LORA": "${HALUCHECK_JUDGE_LORA:-ckpt_judge_enriched}",
+        "HALUCHECK_JUDGE_LORA_V2": "${HALUCHECK_JUDGE_LORA_V2:-}"
+      }
+    }
+  },
+  "commands": [
+    "commands/halucheck-judge.md",
+    "commands/halucheck-rephrase.md",
+    "commands/halucheck-preflight.md",
+    "commands/halucheck-status.md",
+    "commands/halucheck-route.md",
+    "commands/halucheck-check.md",
+    "commands/halucheck-cap.md"
+  ],
+  "skills": [
+    "skills/halucheck"
+  ],
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python ${CLAUDE_PLUGIN_ROOT}/hooks/user_prompt_check.py",
+            "timeout": 10,
+            "statusMessage": "HaluCheck: checking prompt for hallucination triggers"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python ${CLAUDE_PLUGIN_ROOT}/hooks/stop_judge.py",
+            "timeout": 10,
+            "async": true,
+            "statusMessage": "HaluCheck: judging final response"
+          }
+        ]
+      }
+    ]
+  }
+}

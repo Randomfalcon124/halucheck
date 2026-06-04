@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+*.egg-info/
+
+# Local runtime junk
+*.log
+.env
+*.bak.*
+
+# Eval outputs (regenerate per install)
+eval_*.json
+preds_*.jsonl
+threshold_curve_*.jsonl
+_fake_*.json

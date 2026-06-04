@@ -1,0 +1,54 @@
+{
+  "name": "halucheck",
+  "version": "0.2.1",
+  "description": "Hallucination + best-practice toolkit for Claude. 7 MCP tools + 7 slash commands that operationalise 'give Claude a check it can run', 'cap tool output', 'adversarial review', 'subagents for all exploration', and 'bail-on-stuck' as runtime features. Built on Qwen-2.5-1.5B + LoRA adapters with HHEM-2.1-Open for RAG faithfulness.",
+  "author": {
+    "name": "HaluCheck",
+    "email": "halucheck@example.com"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/example/halucheck",
+  "keywords": ["hallucination", "abstention", "guardrails", "llm-judge", "claude-best-practices"],
+  "mcpServers": {
+    "halucheck": {
+      "command": "python",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/mcp/server.py"],
+      "env": {
+        "HALUCHECK_BASE_MODEL": "Qwen/Qwen2.5-1.5B-Instruct",
+        "HALUCHECK_ABS_LORA": "ckpt_abs_check_sft",
+        "HALUCHECK_JUDGE_LORA": "ckpt_judge_enriched",
+        "HALUCHECK_JUDGE_LORA_V2": "ckpt_judge_enriched_v2",
+        "HALUCHECK_CKPT_ROOT": "C:\\Users\\Akshay\\Projects\\Neuron\\gpt2_vg"
+      }
+    }
+  },
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python ${CLAUDE_PLUGIN_ROOT}/hooks/user_prompt_check.py",
+            "timeout": 10,
+            "statusMessage": "HaluCheck: checking prompt for hallucination triggers"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python ${CLAUDE_PLUGIN_ROOT}/hooks/stop_judge.py",
+            "timeout": 10,
+            "async": true,
+            "statusMessage": "HaluCheck: judging final response"
+          }
+        ]
+      }
+    ]
+  }
+}

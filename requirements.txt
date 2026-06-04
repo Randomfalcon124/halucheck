@@ -1,0 +1,31 @@
+# HaluCheck runtime dependencies — pinned to the versions validated this session.
+#
+# Why pin: an earlier session hit `all_tied_weights_keys` AttributeError when
+# loading HHEM-2.1-Open against an unpinned transformers. Pinning prevents the
+# next compatibility surprise.
+#
+# Tested with Python 3.13 on Windows (RTX 4060 Laptop, 8.6 GB).
+#
+# IMPORTANT — torch install:
+#   For CUDA 12.4 (validated):
+#     pip install torch==2.6.0+cu124 --extra-index-url https://download.pytorch.org/whl/cu124
+#   For CPU-only (e.g. server with no GPU; ~1.7 s p50 judge latency):
+#     pip install torch==2.6.0 --extra-index-url https://download.pytorch.org/whl/cpu
+#   The bare `torch==2.6.0` from PyPI works on both but is GPU-disabled.
+# Then run: pip install -r requirements.txt   (skip the torch line if installed above)
+
+# Core inference stack
+torch>=2.6.0,<2.7           # install via --extra-index-url above for CUDA/CPU variants
+transformers==5.8.1
+peft==0.19.1
+sentence-transformers==5.5.1  # required for the L2 composition guard (cosine >= 0.7)
+
+# HTTP server (proxy)
+fastapi>=0.115,<0.120
+uvicorn[standard]>=0.30,<0.40
+httpx>=0.27,<0.30
+pydantic>=2.6,<3
+sentencepiece>=0.2.0
+
+# Plugin (Claude Code / Cowork MCP server)
+mcp>=1.2.0

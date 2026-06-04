@@ -1,0 +1,18 @@
+{
+  "_help": "Tunable preferences injected into every prompt as additionalContext. Edit and the next prompt picks it up (no restart). Set any value to null or empty string to disable that line.",
+
+  "conciseness_level": 8,
+  "_conciseness_help": "1 (verbose, full explanations) → 10 (terse, one-liner answers only). Default 8.",
+
+  "complexity_level": 9,
+  "_complexity_help": "1 (ELI5, define every term) → 10 (assume expert, no preamble). Default 9.",
+
+  "tone": "direct",
+  "_tone_help": "'direct' / 'collegial' / 'formal'. Default 'direct'.",
+
+  "remind_subagent_delegation": true,
+  "_subagent_help": "Add a reminder on every prompt to delegate exploration to subagents (per CLAUDE.md). Default true.",
+
+  "custom_preamble": "",
+  "_custom_help": "Free-form text appended to every additionalContext. Use for project-specific reminders ('always cite file:line', 'use tabs not spaces', etc.)."
+}

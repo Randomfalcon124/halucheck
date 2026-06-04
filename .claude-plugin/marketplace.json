@@ -1,0 +1,23 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "halucheck-local",
+  "description": "Local marketplace hosting the HaluCheck plugin (hallucination + Claude best-practice toolkit). Contains one plugin; install with: claude plugin install halucheck@halucheck-local",
+  "owner": {
+    "name": "HaluCheck",
+    "email": "halucheck@example.com"
+  },
+  "plugins": [
+    {
+      "name": "halucheck",
+      "description": "Hallucination + best-practice toolkit. 7 MCP tools (preflight, rephrase, judge, judge_rag, judge_route, check, cap_output) + 7 slash commands.",
+      "version": "0.2.0",
+      "author": {
+        "name": "HaluCheck",
+        "email": "halucheck@example.com"
+      },
+      "source": "./plugins/halucheck",
+      "category": "guardrails",
+      "strict": false
+    }
+  ]
+}
